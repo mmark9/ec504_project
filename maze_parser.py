@@ -1,0 +1,278 @@
+import sys
+import math
+import argparse
+from collections import defaultdict
+import xml.etree.ElementTree as ET
+
+
+SVG_LINE_FMT = (
+    '<line '
+    'x1="{x1}" '
+    'y1="{y2}" '
+    'x2="{x2}" '
+    'y2="{y2}" '
+    'fill="none" '
+    'stroke="{hex_color}" '
+    'stroke-width="2" '
+    'stroke-linecap="square"'
+    '/>'
+)
+
+SVG_BODY_FMT = '''
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="84" height="84" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <title>{title}</title>
+  <desc>{description}</desc>
+</svg>
+'''
+
+
+LINE_WIDTH = 2
+CELL_WIDTH = 16
+CELL_HEIGHT = 16
+
+
+class Line(object):
+    def __init__(self, x1, y1, x2, y2):
+        self.x1 = x1
+        self.x2 = x2
+        self.y1 = y1
+        self.y2 = y2
+
+        self.x1_bak = x1
+        self.x2_bak = x2
+
+    def reset_x_coords(self):
+        self.x1 = self.x1_bak
+        self.x2 = self.x2_bak
+
+
+class MazeCell(object):
+    def __init__(self, can_go_left=False,
+                 can_go_right=False, can_go_up=False,
+                 can_go_down=False):
+        self.can_go_left = can_go_left
+        self.can_go_right = can_go_right
+        self.can_go_up = can_go_up
+        self.can_go_down = can_go_down
+        self.is_node = False
+        self.marked = False
+        self.node_index = 0
+
+
+def get_2d_index_from_node_number(i, matrix_size):
+    col = (i - 1) % matrix_size
+    row = int(math.floor((i - 1) / matrix_size))
+    return row, col
+
+
+# assumes zero index base
+def get_1d_index(i, j, matrix_size):
+    return (matrix_size * i) + j + 1
+
+
+def line_segment_exists(line_seg, line_list):
+    for line in line_list:
+        if line_seg.x1 >= line.x1 and line_seg.x2 <= line.x2 \
+                and line_seg.y1 >= line.y1 and line_seg.y2 <= line.y2:
+            return True
+    return False
+
+
+def main(cmd_args):
+    tree = ET.parse(cmd_args['svg'])
+    root = tree.getroot()
+    g_obj = root.find('{http://www.w3.org/2000/svg}g')
+    line_list = []
+    max_x2 = LINE_WIDTH
+    max_y2 = LINE_WIDTH
+    for line in g_obj:
+        line_list.append(
+            Line(
+                int(line.attrib['x1']),
+                int(line.attrib['y1']),
+                int(line.attrib['x2']),
+                int(line.attrib['y2'])
+            )
+        )
+        max_x2 = max(int(line.attrib['x2']), max_x2)
+        max_y2 = max(int(line.attrib['y2']), max_y2)
+    maze_rows = int((max_y2 - LINE_WIDTH) / CELL_HEIGHT)
+    maze_cols = int((max_x2 - LINE_WIDTH) / CELL_WIDTH)
+    # assert maze_rows == maze_cols
+    left_line = Line(2, 2, 2, 2 + CELL_HEIGHT)
+    right_line = Line(
+        left_line.x1 + CELL_WIDTH,
+        2,
+        left_line.x1 + CELL_WIDTH,
+        2 + CELL_HEIGHT
+    )
+    top_line = Line(2, 2, 2 + CELL_WIDTH, 2)
+    bottom_line = Line(2,
+                       top_line.y1 + CELL_HEIGHT,
+                       2 + CELL_WIDTH,
+                       top_line.y1 + CELL_HEIGHT)
+    maze_matrix = defaultdict(lambda: [])
+    for row in range(0, maze_rows):
+        for col in range(0, maze_cols):
+            maze_cell = MazeCell()
+            if line_segment_exists(left_line, line_list):
+                maze_cell.can_go_left = False
+            else:
+                maze_cell.can_go_left = True
+            if line_segment_exists(top_line, line_list):
+                maze_cell.can_go_up = False
+            else:
+                maze_cell.can_go_up = True
+            if line_segment_exists(right_line, line_list):
+                maze_cell.can_go_right = False
+            else:
+                maze_cell.can_go_right = True
+            if line_segment_exists(bottom_line, line_list):
+                maze_cell.can_go_down = False
+            else:
+                maze_cell.can_go_down = True
+            print(
+                'cell ({},{}) left: {} | '
+                'up: {} | right: {} | down: {}'.format(
+                    row + 1,
+                    col + 1,
+                    maze_cell.can_go_left,
+                    maze_cell.can_go_up,
+                    maze_cell.can_go_right,
+                    maze_cell.can_go_down
+                )
+            )
+            maze_matrix[row].append(maze_cell)
+            left_line.x1 += CELL_WIDTH
+            left_line.x2 = left_line.x1
+            top_line.x1 = left_line.x1
+            top_line.x2 = top_line.x1 + CELL_WIDTH
+            right_line.x1 += CELL_WIDTH
+            right_line.x2 = right_line.x1
+            bottom_line.x1 = top_line.x1
+            bottom_line.x2 = top_line.x2
+        left_line.reset_x_coords()
+        top_line.reset_x_coords()
+        right_line.reset_x_coords()
+        bottom_line.reset_x_coords()
+        left_line.y1 = left_line.y2
+        left_line.y2 += CELL_HEIGHT
+        top_line.y1 = left_line.y1
+        top_line.y2 = top_line.y1
+        right_line.y1 = left_line.y1
+        right_line.y2 = left_line.y2
+        bottom_line.y1 += CELL_HEIGHT
+        bottom_line.y2 = bottom_line.y1
+    num_hops = 0
+    node_index = 0
+    src_col = 0
+    adjacency_list = defaultdict(lambda: [])
+    # horizontal sweep
+    for row in range(0, maze_rows):
+        num_hops = 0
+        src_col = 0
+        src_cell = maze_matrix[row][0]
+        for col in range(0, maze_cols):
+            dest_cell = maze_matrix[row][col]
+            if src_cell == dest_cell:
+                dest_cell.node_index = node_index
+                if not dest_cell.can_go_right:
+                    src_col = col + 1
+                    if src_col < maze_cols:
+                        src_cell = maze_matrix[row][src_col]
+                        num_hops = 0
+                else:
+                    dest_cell.is_node = True
+                    num_hops += 1
+            elif dest_cell.can_go_left and \
+                    dest_cell.can_go_right and not dest_cell.can_go_down:
+                num_hops += 1
+            else:
+                dest_cell.is_node = True
+                adjacency_list[node_index].append(
+                    (node_index + 1, (row, col), num_hops)
+                )
+                adjacency_list[node_index + 1].append(
+                    (node_index, (row, src_col), num_hops)
+                )
+                dest_cell.node_index = node_index + 1
+                num_hops = 0
+                if dest_cell.can_go_right:
+                    src_cell = dest_cell
+                    src_col = col
+                    node_index += 1
+                    num_hops += 1
+                else:
+                    node_index += 2
+                    src_col = col + 1
+                    if src_col >= maze_cols:
+                        continue
+                    src_cell = maze_matrix[row][src_col]
+    # vertical sweep
+    src_row = 0
+    for col in range(0, maze_cols):
+        num_hops = 0
+        src_row = 0
+        src_cell = maze_matrix[0][col]
+        for row in range(0, maze_rows):
+            dest_cell = maze_matrix[row][col]
+            if src_cell == dest_cell:
+                if not dest_cell.can_go_down:
+                    src_row = row + 1
+                    if src_row < maze_rows:
+                        src_cell = maze_matrix[src_row][col]
+                        num_hops = 0
+                else:
+                    num_hops += 1
+            elif dest_cell.can_go_up and dest_cell.can_go_down \
+                    and not dest_cell.is_node:
+                num_hops += 1
+            else:
+                adjacency_list[src_cell.node_index].append(
+                    (dest_cell.node_index, (row, col), num_hops)
+                )
+                adjacency_list[dest_cell.node_index].append(
+                    (src_cell.node_index, (src_row, col), num_hops)
+                )
+                num_hops = 0
+                if dest_cell.can_go_down:
+                    src_cell = dest_cell
+                    src_row = row
+                    num_hops += 1
+                else:
+                    src_row = row + 1
+                    if src_row >= maze_rows:
+                        continue
+                    src_cell = maze_matrix[src_row][col]
+    print('\nMaze Matrix to Graph mapping')
+    for row in range(0, maze_rows):
+        for col in range(0, maze_cols):
+            print(
+                '({},{}) is Node {}'.format(
+                    row, col,
+                    'yes #{}'.format(maze_matrix[row][col].node_index)
+                    if maze_matrix[row][col].is_node else 'No'
+                )
+            )
+    print('\nAdjacency list:')
+    for u in range(0, len(adjacency_list.keys())):
+        sys.stdout.write('{}: '.format(u))
+        for v in adjacency_list[u]:
+            sys.stdout.write(
+                '--> {}'.format(v[0])
+            )
+        sys.stdout.write('\n')
+
+
+if __name__ == '__main__':
+    arg_parser = argparse.ArgumentParser(
+        description='Parses SVG maze into adjacency list'
+    )
+    arg_parser.add_argument(
+        'svg',
+        help='Path to SVG file'
+    )
+    args = vars(arg_parser.parse_args())
+    main(args)
