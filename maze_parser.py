@@ -118,6 +118,12 @@ class MazeCell(object):
     def stroke_right_toggle(self):
         self.right_line_active = not self.right_line_active
 
+    def update_isNode(self):
+        self.is_node = ((self.can_go_up and not self.can_go_down) or
+                        (self.can_go_down and not self.can_go_up) or
+                        (self.can_go_left and not self.can_go_right) or
+                        (self.can_go_right and not self.can_go_left))
+
     def stroke_vertical_toggle(self):
         self.stroke_up_toggle()
         self.stroke_down_toggle()
@@ -249,6 +255,7 @@ def main(cmd_args):
                        top_line.y1 + CELL_HEIGHT,
                        2 + CELL_WIDTH,
                        top_line.y1 + CELL_HEIGHT)
+    node_index = 0
     maze_matrix = defaultdict(lambda: [])
     for row in range(0, maze_rows):
         for col in range(0, maze_cols):
@@ -258,22 +265,14 @@ def main(cmd_args):
                 top_line,
                 bottom_line
             )
-            if line_segment_exists(left_line, line_list):
-                maze_cell.can_go_left = False
-            else:
-                maze_cell.can_go_left = True
-            if line_segment_exists(top_line, line_list):
-                maze_cell.can_go_up = False
-            else:
-                maze_cell.can_go_up = True
-            if line_segment_exists(right_line, line_list):
-                maze_cell.can_go_right = False
-            else:
-                maze_cell.can_go_right = True
-            if line_segment_exists(bottom_line, line_list):
-                maze_cell.can_go_down = False
-            else:
-                maze_cell.can_go_down = True
+            maze_cell.can_go_left = not line_segment_exists(left_line, line_list)
+            maze_cell.can_go_up = not line_segment_exists(top_line, line_list)
+            maze_cell.can_go_right = not line_segment_exists(right_line, line_list)
+            maze_cell.can_go_down = not line_segment_exists(bottom_line, line_list)
+            maze_cell.update_isNode()
+            if maze_cell.is_node:
+                maze_cell.node_index = node_index
+                node_index += 1
             print(
                 'cell ({},{}) left: {} | '
                 'up: {} | right: {} | down: {}'.format(
@@ -306,7 +305,6 @@ def main(cmd_args):
         right_line.y2 = left_line.y2
         bottom_line.y1 += CELL_HEIGHT
         bottom_line.y2 = bottom_line.y1
-    node_index = 0
     adjacency_list = defaultdict(lambda: [])
     # horizontal sweep
     for row in range(0, maze_rows):
@@ -316,35 +314,29 @@ def main(cmd_args):
         for col in range(0, maze_cols):
             dest_cell = maze_matrix[row][col]
             if src_cell == dest_cell:
-                dest_cell.node_index = node_index
                 if not dest_cell.can_go_right:
                     src_col = col + 1
                     if src_col < maze_cols:
                         src_cell = maze_matrix[row][src_col]
                         num_hops = 0
                 else:
-                    dest_cell.is_node = True
                     num_hops += 1
             elif dest_cell.can_go_left and \
-                    dest_cell.can_go_right and not dest_cell.can_go_down:
+                    dest_cell.can_go_right and not dest_cell.is_node:
                 num_hops += 1
             else:
-                dest_cell.is_node = True
-                adjacency_list[node_index].append(
-                    (node_index + 1, (row, col), num_hops)
+                adjacency_list[src_cell.node_index].append(
+                    (dest_cell.node_index, (row, col), num_hops)
                 )
-                adjacency_list[node_index + 1].append(
-                    (node_index, (row, src_col), num_hops)
+                adjacency_list[dest_cell.node_index].append(
+                    (src_cell.node_index, (row, src_col), num_hops)
                 )
-                dest_cell.node_index = node_index + 1
                 num_hops = 0
                 if dest_cell.can_go_right:
                     src_cell = dest_cell
                     src_col = col
-                    node_index += 1
                     num_hops += 1
                 else:
-                    node_index += 2
                     src_col = col + 1
                     if src_col >= maze_cols:
                         continue
