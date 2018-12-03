@@ -391,7 +391,7 @@ def main(cmd_args):
         sys.stdout.write('{}: '.format(u))
         for v in adjacency_list[u]:
             sys.stdout.write(
-                '--> {}'.format(v[0])
+                '--> {}({})'.format(v[0],v[2])
             )
         sys.stdout.write('\n')
     # Example of drawing solution for 5x5 maze
