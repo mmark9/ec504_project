@@ -22,11 +22,10 @@ SVG_LINE_FMT = (
 
 SVG_BODY_FMT = '''<?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="84" height="84" version="1.1" xmlns="http://www.w3.org/2000/svg">
+<svg width="{svg_width}" height="{svg_height}" version="1.1" xmlns="http://www.w3.org/2000/svg">
   <title>{title}</title>
   <desc>{description}</desc>
-  {lines}
-</svg>
+  {lines}</svg>
 '''
 
 
@@ -152,7 +151,7 @@ def line_segment_exists(line_seg, line_list):
     return False
 
 
-def write_svg_to_file(file_path, maze_matrix, line_list):
+def write_svg_to_file(file_path, maze_matrix, line_list, img_width, img_height):
     line_list_str = ''
     with open(file_path, mode='w') as out_fh:
         for line in line_list:
@@ -166,7 +165,6 @@ def write_svg_to_file(file_path, maze_matrix, line_list):
                 shape=LineBorderShape.SQUARE.value
             )
             line_list_str += '\n'
-        line_list_str += '\n\n'
         for row in range(0, len(maze_matrix.keys())):
             for col in range(0, len(maze_matrix.keys())):
                 cell = maze_matrix[row][col]
@@ -217,7 +215,9 @@ def write_svg_to_file(file_path, maze_matrix, line_list):
         svg_content = SVG_BODY_FMT.format(
             lines=line_list_str,
             title='SVG Matrix',
-            description='Generated Matrix'
+            description='Generated Matrix',
+            svg_width=img_width,
+            svg_height=img_height
         )
         out_fh.write(svg_content)
 
@@ -423,7 +423,9 @@ def main(cmd_args):
     write_svg_to_file(
         solution_path,
         maze_matrix,
-        line_list
+        line_list,
+        max_x2 + LINE_WIDTH,
+        max_x2 + LINE_WIDTH
     )
 
 
