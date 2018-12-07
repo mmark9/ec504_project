@@ -189,7 +189,10 @@ public:
 		_up_stroke_on = false;
 		_down_stroke_on = false;
 		_node_index = 0;
-		_stroke_color = COLOR_BLACK;
+		_left_stroke_color = COLOR_BLACK;
+		_right_stroke_color = COLOR_BLACK;
+		_up_stroke_color = COLOR_BLACK;
+		_down_stroke_color = COLOR_BLACK;
 	}
 
 	MazeCell(const CellWindow& cell, bool can_go_left, bool can_go_right,
@@ -214,7 +217,10 @@ public:
 		_up_stroke_on = false;
 		_down_stroke_on = false;
 		_node_index = 0;
-		_stroke_color = COLOR_BLACK;
+		_left_stroke_color = COLOR_BLACK;
+		_right_stroke_color = COLOR_BLACK;
+		_up_stroke_color = COLOR_BLACK;
+		_down_stroke_color = COLOR_BLACK;
 	}
 
 	Line GetLeftStroke() const {
@@ -265,20 +271,24 @@ public:
 		_right_stroke_on = !_right_stroke_on;
 	}
 
-	void SetLeftStrokeOn(bool on) {
+	void SetLeftStrokeOn(bool on, const char* color) {
 		_left_stroke_on = on;
+		_left_stroke_color = color;
 	}
 
-	void SetRightStrokeOn(bool on) {
+	void SetRightStrokeOn(bool on, const char* color) {
 		_right_stroke_on = on;
+		_right_stroke_color = color;
 	}
 
-	void SetUpStrokeOn(bool on) {
+	void SetUpStrokeOn(bool on, const char* color) {
 		_up_stroke_on = on;
+		_up_stroke_color = color;
 	}
 
-	void SetDownStrokeOn(bool on) {
+	void SetDownStrokeOn(bool on, const char* color) {
 		_down_stroke_on = on;
+		_down_stroke_color = color;
 	}
 
 	void ToggleHorizontalLineStroke() {
@@ -314,6 +324,13 @@ public:
 		_down_stroke_on = false;
 	}
 
+	void ClearStrokeColors() {
+		_left_stroke_color = COLOR_BLACK;
+		_right_stroke_color = COLOR_BLACK;
+		_up_stroke_color = COLOR_BLACK;
+		_down_stroke_color = COLOR_BLACK;
+	}
+
 	bool IsNode() const {
 		return _is_node;
 	}
@@ -326,12 +343,20 @@ public:
 		return _node_index;
 	}
 
-	void SetStrokeColor(const char* color_code) {
-		_stroke_color = color_code;
+	const char* GetLeftStrokeColor() const {
+		return _left_stroke_color;
 	}
 
-	const char* GetStrokeColor() const {
-		return _stroke_color;
+	const char* GetRightStrokeColor() const {
+		return _right_stroke_color;
+	}
+
+	const char* GetUpStrokeColor() const {
+		return _up_stroke_color;
+	}
+
+	const char* GetDownStrokeColor() const {
+		return _down_stroke_color;
 	}
 
 private:
@@ -349,7 +374,10 @@ private:
 	bool _up_stroke_on;
 	bool _down_stroke_on;
 	uint32_t _node_index;
-	const char* _stroke_color;
+	const char* _left_stroke_color;
+	const char* _right_stroke_color;
+	const char* _up_stroke_color;
+	const char* _down_stroke_color;
 };
 
 struct AdjacenyEntry {
@@ -420,12 +448,11 @@ public:
 			_origin_row = row;
 			_origin_col = col;
 			_maze_matrix[row][col]->ClearStrokes();
-			_maze_matrix[row][col]->SetStrokeColor(stroke_color);
 			// here we assume entries and exits are always at top or bottom
 			if (_maze_matrix[row][col]->CanGoUp()) {
-				_maze_matrix[row][col]->SetUpStrokeOn(true);
+				_maze_matrix[row][col]->SetUpStrokeOn(true, stroke_color);
 			} else if (_maze_matrix[row][col]->CanGoDown()) {
-				_maze_matrix[row][col]->SetDownStrokeOn(true);
+				_maze_matrix[row][col]->SetDownStrokeOn(true, stroke_color);
 			}
 		}
 	}
@@ -438,7 +465,6 @@ public:
 		if (row <= _maze_matrix.size() && col <= _maze_matrix.size()) {
 			_origin_row = row;
 			_origin_col = col;
-			_maze_matrix[row][col]->SetStrokeColor(stroke_color);
 		}
 	}
 
@@ -451,31 +477,29 @@ public:
 		if (row <= _maze_matrix.size() && col <= _maze_matrix.size()) {
 			_origin_row = row;
 			_origin_col = col;
-			_maze_matrix[row][col]->SetStrokeColor(stroke_color);
 			switch(start_direction) {
 			case LEFT:
-				_maze_matrix[row][col]->SetLeftStrokeOn(true);
+				_maze_matrix[row][col]->SetLeftStrokeOn(true, stroke_color);
 				break;
 			case RIGHT:
-				_maze_matrix[row][col]->SetRightStrokeOn(true);
+				_maze_matrix[row][col]->SetRightStrokeOn(true, stroke_color);
 				break;
 			case UP:
-				_maze_matrix[row][col]->SetUpStrokeOn(true);
+				_maze_matrix[row][col]->SetUpStrokeOn(true, stroke_color);
 				break;
 			case DOWN:
-				_maze_matrix[row][col]->SetDownStrokeOn(true);
+				_maze_matrix[row][col]->SetDownStrokeOn(true, stroke_color);
 				break;
 			}
 		}
 	}
 
 	void FinishTravel(const char* stroke_color) {
-		_maze_matrix[_origin_row][_origin_col]->SetStrokeColor(stroke_color);
 		// here we assume entries and exits are always at top or bottom
 		if (_maze_matrix[_origin_row][_origin_col]->CanGoUp()) {
-			_maze_matrix[_origin_row][_origin_col]->SetUpStrokeOn(true);
+			_maze_matrix[_origin_row][_origin_col]->SetUpStrokeOn(true, stroke_color);
 		} else if (_maze_matrix[_origin_row][_origin_col]->CanGoDown()) {
-			_maze_matrix[_origin_row][_origin_col]->SetDownStrokeOn(true);
+			_maze_matrix[_origin_row][_origin_col]->SetDownStrokeOn(true, stroke_color);
 		}
 	}
 
@@ -493,64 +517,55 @@ public:
 				if (_origin_col > adj_entry.maze_col) {
 					// we are  moving to the left
 					_maze_matrix[_origin_row][_origin_col]->SetLeftStrokeOn(
-							true);
+							true, stroke_color);
 					for (int col = _origin_col - 1; col > adj_entry.maze_col;
 							col--) {
-						_maze_matrix[_origin_row][col]->SetLeftStrokeOn(true);
-						_maze_matrix[_origin_row][col]->SetRightStrokeOn(true);
-						_maze_matrix[_origin_row][col]->SetStrokeColor(stroke_color);
+						_maze_matrix[_origin_row][col]->SetLeftStrokeOn(true, stroke_color);
+						_maze_matrix[_origin_row][col]->SetRightStrokeOn(true, stroke_color);
 					}
 					_maze_matrix[_origin_row][adj_entry.maze_col]->SetRightStrokeOn(
-							true);
-					_maze_matrix[_origin_row][adj_entry.maze_col]->SetStrokeColor(stroke_color);
+							true, stroke_color);
 					_origin_col = adj_entry.maze_col;
 					_origin_row = adj_entry.maze_row;
 
 				} else if (_origin_col < adj_entry.maze_col) {
 					// we are going to the right
 					_maze_matrix[_origin_row][_origin_col]->SetRightStrokeOn(
-							true);
+							true, stroke_color);
 					for (int col = _origin_col + 1; col < adj_entry.maze_col;
 							col++) {
-						_maze_matrix[_origin_row][col]->SetLeftStrokeOn(true);
-						_maze_matrix[_origin_row][col]->SetRightStrokeOn(true);
-						_maze_matrix[_origin_row][col]->SetStrokeColor(stroke_color);
+						_maze_matrix[_origin_row][col]->SetLeftStrokeOn(true, stroke_color);
+						_maze_matrix[_origin_row][col]->SetRightStrokeOn(true, stroke_color);
 					}
 					_maze_matrix[_origin_row][adj_entry.maze_col]->SetLeftStrokeOn(
-							true);
-					_maze_matrix[_origin_row][adj_entry.maze_col]->SetStrokeColor(stroke_color);
+							true, stroke_color);
 					_origin_col = adj_entry.maze_col;
 					_origin_row = adj_entry.maze_row;
 				}
 			} else if (_origin_col == adj_entry.maze_col) {
 				if (_origin_row > adj_entry.maze_row) {
 					// we are going up
-					_maze_matrix[_origin_row][_origin_col]->SetUpStrokeOn(true);
+					_maze_matrix[_origin_row][_origin_col]->SetUpStrokeOn(true, stroke_color);
 					for (int row = _origin_row - 1; row > adj_entry.maze_row;
 							row--) {
-						_maze_matrix[row][_origin_col]->SetUpStrokeOn(true);
-						_maze_matrix[row][_origin_col]->SetDownStrokeOn(true);
-						_maze_matrix[row][_origin_col]->SetStrokeColor(stroke_color);
+						_maze_matrix[row][_origin_col]->SetUpStrokeOn(true, stroke_color);
+						_maze_matrix[row][_origin_col]->SetDownStrokeOn(true, stroke_color);
 					}
 					_maze_matrix[adj_entry.maze_row][_origin_col]->SetDownStrokeOn(
-							true);
-					_maze_matrix[adj_entry.maze_row][_origin_col]->SetStrokeColor(stroke_color);
+							true, stroke_color);
 					_origin_col = adj_entry.maze_col;
 					_origin_row = adj_entry.maze_row;
 				} else if (_origin_row < adj_entry.maze_row) {
 					// we are going down
 					_maze_matrix[_origin_row][_origin_col]->SetDownStrokeOn(
-							true);
+							true, stroke_color);
 					for (int row = _origin_row + 1; row < adj_entry.maze_row;
 							row++) {
-						_maze_matrix[row][_origin_col]->SetUpStrokeOn(true);
-						_maze_matrix[row][_origin_col]->SetDownStrokeOn(true);
-						_maze_matrix[row][_origin_col]->SetStrokeColor(stroke_color);
+						_maze_matrix[row][_origin_col]->SetUpStrokeOn(true, stroke_color);
+						_maze_matrix[row][_origin_col]->SetDownStrokeOn(true, stroke_color);
 					}
 					_maze_matrix[adj_entry.maze_row][_origin_col]->SetUpStrokeOn(
-							true);
-					_maze_matrix[adj_entry.maze_row][_origin_col]->SetStrokeColor(stroke_color);
-
+							true, stroke_color);
 					_origin_col = adj_entry.maze_col;
 					_origin_row = adj_entry.maze_row;
 				}
@@ -663,7 +678,7 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
 						"stroke=\"%s\" "
 						"stroke-width=\"%u\" "
 						"stroke-linecap=\"%s\"/>\n", temp_line.x1, temp_line.y1,
-						temp_line.x2, temp_line.y2, maze_cell->GetStrokeColor(), LINE_WIDTH,
+						temp_line.x2, temp_line.y2, maze_cell->GetLeftStrokeColor(), LINE_WIDTH,
 						STROKE_LINE_CAP_ROUND);
 			}
 			if (maze_cell->UpStrokeIsOn()) {
@@ -677,7 +692,7 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
 						"stroke=\"%s\" "
 						"stroke-width=\"%u\" "
 						"stroke-linecap=\"%s\"/>\n", temp_line.x1, temp_line.y1,
-						temp_line.x2, temp_line.y2, maze_cell->GetStrokeColor(), LINE_WIDTH,
+						temp_line.x2, temp_line.y2, maze_cell->GetUpStrokeColor(), LINE_WIDTH,
 						STROKE_LINE_CAP_ROUND);
 			}
 			if (maze_cell->RightStrokeOn()) {
@@ -691,7 +706,7 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
 						"stroke=\"%s\" "
 						"stroke-width=\"%u\" "
 						"stroke-linecap=\"%s\"/>\n", temp_line.x1, temp_line.y1,
-						temp_line.x2, temp_line.y2, maze_cell->GetStrokeColor(), LINE_WIDTH,
+						temp_line.x2, temp_line.y2, maze_cell->GetRightStrokeColor(), LINE_WIDTH,
 						STROKE_LINE_CAP_ROUND);
 			}
 			if (maze_cell->DownStrokeOn()) {
@@ -705,7 +720,7 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
 						"stroke=\"%s\" "
 						"stroke-width=\"%u\" "
 						"stroke-linecap=\"%s\"/>\n", temp_line.x1, temp_line.y1,
-						temp_line.x2, temp_line.y2, maze_cell->GetStrokeColor(), LINE_WIDTH,
+						temp_line.x2, temp_line.y2, maze_cell->GetDownStrokeColor(), LINE_WIDTH,
 						STROKE_LINE_CAP_ROUND);
 			}
 		}
