@@ -382,6 +382,7 @@ typedef std::vector<std::vector<MazeCell*> > MazeMatrix;
 typedef std::map<uint32_t, std::vector<AdjacenyEntry*> > AdjacencyList;
 typedef std::vector<std::vector<bool> > AdjacencyMatrix;
 typedef std::vector<std::vector<AdjacenyEntry> > AdjacencyTravelMatrix;
+typedef std::vector<uint32_t> Path;
 
 enum TravelDirection {
 	UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3
@@ -539,12 +540,10 @@ public:
 		return 0;
 	}
 
-	void TravelToNode2D(uint32_t row, uint32_t col, const char* stroke_color) {
-		// TODO: add logic
-	}
-
-	void DrawPath(std::vector<uint32_t> path, const char* color) {
-		// TODO: add logic
+	void DrawPath(const Path& path, const char* stroke_color) {
+		for (Path::const_iterator node = path.begin(); node != path.end(); node++) {
+			this->TravelToNode(*node, stroke_color);
+		}
 	}
 
 	uint32_t GetCurrentOriginRow() {
@@ -886,8 +885,8 @@ int main(int argc, char** argv) {
 		}
 		fprintf(stdout, "\n");
 	}
-	/* // BEGIN Example usage for a 5by5 maze
-	std::string output_path(argv[1]);
+	 // BEGIN Example usage for a 5by5 maze
+	/*std::string output_path(argv[1]);
 	size_t sub_pos = output_path.find(".svg");
 	if (sub_pos != output_path.npos) {
 		output_path = output_path.substr(0, sub_pos);
@@ -898,15 +897,19 @@ int main(int argc, char** argv) {
 	// call these functions to get starts and end points
 	uint32_t start_node = mt->GetStartNode();
 	uint32_t end_node = mt->GetEndNode();
+	// create path
+	Path solution_path;
 	// call this to draw the start line
-	mt->StartTravel(1, COLOR_RED);
-	mt->TravelToNode(0, COLOR_RED);
-	mt->TravelToNode(4, COLOR_RED);
-	mt->TravelToNode(5, COLOR_RED);
-	mt->TravelToNode(9, COLOR_RED);
-	mt->TravelToNode(10, COLOR_RED);
-	mt->TravelToNode(18, COLOR_RED);
-	mt->TravelToNode(17, COLOR_RED);
+	mt->StartTravel(start_node, COLOR_RED);
+	solution_path.push_back(0);
+	solution_path.push_back(4);
+	solution_path.push_back(5);
+	solution_path.push_back(9);
+	solution_path.push_back(10);
+	solution_path.push_back(18);
+	solution_path.push_back(17);
+	// draw solution path
+	mt->DrawPath(solution_path, COLOR_RED);
 	// call this to draw the exit line
 	mt->FinishTravel(COLOR_RED);
 	write_solution_to_file(output_path, mt->GetMazeMatrix(), line_list,
