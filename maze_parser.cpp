@@ -13,6 +13,14 @@ const uint32_t CELL_HEIGHT = CELL_WIDTH;
 const uint32_t CELL_MID_WIDTH = CELL_WIDTH / 2;
 const uint32_t CELL_MID_HEIGHT = CELL_MID_WIDTH;
 
+const char* COLOR_BLACK = "#000000";
+const char* COLOR_RED = "#ff3300";
+const char* COLOR_BLUE = "#0000ff";
+
+const char* STROKE_LINE_CAP_BUTT = "butt";
+const char* STROKE_LINE_CAP_ROUND = "round";
+const char* STROKE_LINE_CAP_SQUARE = "square";
+
 struct Line {
 	Line() {
 		x1 = 0;
@@ -168,7 +176,8 @@ public:
 		_is_node = (_can_go_up && !_can_go_down)
 				|| (_can_go_down && !_can_go_up)
 				|| (_can_go_left && !_can_go_right)
-				|| (_can_go_right && !_can_go_left);
+				|| (_can_go_right && !_can_go_left)
+				|| (_can_go_right & _can_go_left & _can_go_up & _can_go_down);
 		int mid_x = right.x1 - CELL_MID_WIDTH;
 		int mid_y = bottom.y1 - CELL_MID_HEIGHT;
 		_left_stroke = new Line(left.x1, mid_y, mid_x, mid_y);
@@ -180,6 +189,7 @@ public:
 		_up_stroke_on = false;
 		_down_stroke_on = false;
 		_node_index = 0;
+		_stroke_color = COLOR_BLACK;
 	}
 
 	MazeCell(const CellWindow& cell, bool can_go_left, bool can_go_right,
@@ -191,7 +201,8 @@ public:
 		_is_node = (_can_go_up && !_can_go_down)
 				|| (_can_go_down && !_can_go_up)
 				|| (_can_go_left && !_can_go_right)
-				|| (_can_go_right && !_can_go_left);
+				|| (_can_go_right && !_can_go_left)
+				|| (_can_go_right & _can_go_left & _can_go_up & _can_go_down);
 		int mid_x = cell.get_right_line().x1 - CELL_MID_WIDTH;
 		int mid_y = cell.get_bottom_line().y1 - CELL_MID_HEIGHT;
 		_left_stroke = new Line(cell.get_left_line().x1, mid_y, mid_x, mid_y);
@@ -203,6 +214,7 @@ public:
 		_up_stroke_on = false;
 		_down_stroke_on = false;
 		_node_index = 0;
+		_stroke_color = COLOR_BLACK;
 	}
 
 	Line GetLeftStroke() const {
@@ -253,6 +265,22 @@ public:
 		_right_stroke_on = !_right_stroke_on;
 	}
 
+	void SetLeftStrokeOn(bool on) {
+		_left_stroke_on = on;
+	}
+
+	void SetRightStrokeOn(bool on) {
+		_right_stroke_on = on;
+	}
+
+	void SetUpStrokeOn(bool on) {
+		_up_stroke_on = on;
+	}
+
+	void SetDownStrokeOn(bool on) {
+		_down_stroke_on = on;
+	}
+
 	void ToggleHorizontalLineStroke() {
 		ToggleLeftStroke();
 		ToggleRightStroke();
@@ -279,6 +307,13 @@ public:
 		return _right_stroke_on;
 	}
 
+	void ClearStrokes() {
+		_left_stroke_on = false;
+		_right_stroke_on = false;
+		_up_stroke_on = false;
+		_down_stroke_on = false;
+	}
+
 	bool IsNode() const {
 		return _is_node;
 	}
@@ -289,6 +324,14 @@ public:
 
 	uint32_t GetNodeIndex() const {
 		return _node_index;
+	}
+
+	void SetStrokeColor(const char* color_code) {
+		_stroke_color = color_code;
+	}
+
+	const char* GetStrokeColor() const {
+		return _stroke_color;
 	}
 
 private:
@@ -306,31 +349,230 @@ private:
 	bool _up_stroke_on;
 	bool _down_stroke_on;
 	uint32_t _node_index;
+	const char* _stroke_color;
 };
 
 struct AdjacenyEntry {
+
+	AdjacenyEntry() {
+		node_index = 0;
+		maze_row = 0;
+		maze_col = 0;
+		edge_value = 0;
+		is_valid = false;
+	}
+
 	AdjacenyEntry(uint32_t index, uint32_t row, uint32_t col, uint32_t value) {
 		node_index = index;
 		maze_row = row;
 		maze_col = col;
 		edge_value = value;
+		is_valid = false;
 	}
 
 	uint32_t node_index;
 	uint32_t maze_row;
 	uint32_t maze_col;
 	uint32_t edge_value;
+	bool is_valid;
 };
 
+typedef std::map<uint32_t, AdjacenyEntry> NodeIndexToCellMap;
 typedef std::vector<std::vector<MazeCell*> > MazeMatrix;
 typedef std::map<uint32_t, std::vector<AdjacenyEntry*> > AdjacencyList;
+typedef std::vector<std::vector<bool> > AdjacencyMatrix;
+typedef std::vector<std::vector<AdjacenyEntry> > AdjacencyTravelMatrix;
 
-const char* COLOR_BLACK = "#000000";
-const char* COLOR_RED = "#ff3300";
+enum TravelDirection {
+	UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3
+};
 
-const char* STROKE_LINE_CAP_BUTT = "butt";
-const char* STROKE_LINE_CAP_ROUND = "round";
-const char* STROKE_LINE_CAP_SQUARE = "square";
+class MazeTraveler {
+public:
+	MazeTraveler(MazeMatrix matrix, const AdjacencyList& adj_list) {
+		_row_count = matrix.size() * matrix.size();
+		_col_count = _row_count;
+		_adj_matrix.resize(_row_count);
+		for (int c = 0; c < _row_count; c++) {
+			_adj_matrix[c].resize(_row_count);
+		}
+		for (AdjacencyList::const_iterator u = adj_list.begin();
+				u != adj_list.end(); u++) {
+			for (std::vector<AdjacenyEntry*>::const_iterator v =
+					(*u).second.begin(); v != (*u).second.end(); v++) {
+				_adj_matrix[(*u).first][(*v)->node_index] = *(*v);
+				_adj_matrix[(*u).first][(*v)->node_index].is_valid = true;
+				_index_to_cell_map[(*v)->node_index] = *(*v);
+			}
+		}
+		_origin_row = 0;
+		_origin_col = 0;
+		_maze_matrix = matrix;
+	}
+
+	void StartTravel(uint32_t node_index, const char* stroke_color) {
+		if (_index_to_cell_map.find(node_index) == _index_to_cell_map.end())
+			return;
+		uint32_t row = _index_to_cell_map[node_index].maze_row;
+		uint32_t col = _index_to_cell_map[node_index].maze_col;
+		if (row <= _maze_matrix.size() && col <= _maze_matrix.size()) {
+			_origin_row = row;
+			_origin_col = col;
+			_maze_matrix[row][col]->ClearStrokes();
+			_maze_matrix[row][col]->SetStrokeColor(stroke_color);
+			// here we assume entries and exits are always at top or bottom
+			if (_maze_matrix[row][col]->CanGoUp()) {
+				_maze_matrix[row][col]->SetUpStrokeOn(true);
+			} else if (_maze_matrix[row][col]->CanGoDown()) {
+				_maze_matrix[row][col]->SetDownStrokeOn(true);
+			}
+		}
+	}
+
+	void FinishTravel(const char* stroke_color) {
+		_maze_matrix[_origin_row][_origin_col]->SetStrokeColor(stroke_color);
+		// here we assume entries and exits are always at top or bottom
+		if (_maze_matrix[_origin_row][_origin_col]->CanGoUp()) {
+			_maze_matrix[_origin_row][_origin_col]->SetUpStrokeOn(true);
+		} else if (_maze_matrix[_origin_row][_origin_col]->CanGoDown()) {
+			_maze_matrix[_origin_row][_origin_col]->SetDownStrokeOn(true);
+		}
+	}
+
+	void TravelToNode(uint32_t node_index, const char* stroke_color) {
+		// first check if they are adjacent
+		uint32_t origin_node_index =
+				_maze_matrix[_origin_row][_origin_col]->GetNodeIndex();
+		AdjacenyEntry adj_entry =\
+ _adj_matrix[origin_node_index][node_index];
+		fprintf(stdout, "Attempting to travel from %u to %u..\n",
+				origin_node_index, node_index);
+		fprintf(stdout, "\tOrigin was (%u, %u)\n", _origin_row, _origin_col);
+		if (adj_entry.is_valid) {
+			if (_origin_row == adj_entry.maze_row) {
+				if (_origin_col > adj_entry.maze_col) {
+					// we are  moving to the left
+					_maze_matrix[_origin_row][_origin_col]->SetLeftStrokeOn(
+							true);
+					for (int col = _origin_col - 1; col > adj_entry.maze_col;
+							col--) {
+						_maze_matrix[_origin_row][col]->SetLeftStrokeOn(true);
+						_maze_matrix[_origin_row][col]->SetRightStrokeOn(true);
+						_maze_matrix[_origin_row][col]->SetStrokeColor(stroke_color);
+					}
+					_maze_matrix[_origin_row][adj_entry.maze_col]->SetRightStrokeOn(
+							true);
+					_maze_matrix[_origin_row][adj_entry.maze_col]->SetStrokeColor(stroke_color);
+					_origin_col = adj_entry.maze_col;
+					_origin_row = adj_entry.maze_row;
+
+				} else if (_origin_col < adj_entry.maze_col) {
+					// we are going to the right
+					_maze_matrix[_origin_row][_origin_col]->SetRightStrokeOn(
+							true);
+					for (int col = _origin_col + 1; col < adj_entry.maze_col;
+							col++) {
+						_maze_matrix[_origin_row][col]->SetLeftStrokeOn(true);
+						_maze_matrix[_origin_row][col]->SetRightStrokeOn(true);
+						_maze_matrix[_origin_row][col]->SetStrokeColor(stroke_color);
+					}
+					_maze_matrix[_origin_row][adj_entry.maze_col]->SetLeftStrokeOn(
+							true);
+					_maze_matrix[_origin_row][adj_entry.maze_col]->SetStrokeColor(stroke_color);
+					_origin_col = adj_entry.maze_col;
+					_origin_row = adj_entry.maze_row;
+				}
+			} else if (_origin_col == adj_entry.maze_col) {
+				if (_origin_row > adj_entry.maze_row) {
+					// we are going up
+					_maze_matrix[_origin_row][_origin_col]->SetUpStrokeOn(true);
+					for (int row = _origin_row - 1; row > adj_entry.maze_row;
+							row--) {
+						_maze_matrix[row][_origin_col]->SetUpStrokeOn(true);
+						_maze_matrix[row][_origin_col]->SetDownStrokeOn(true);
+						_maze_matrix[row][_origin_col]->SetStrokeColor(stroke_color);
+					}
+					_maze_matrix[adj_entry.maze_row][_origin_col]->SetDownStrokeOn(
+							true);
+					_maze_matrix[adj_entry.maze_row][_origin_col]->SetStrokeColor(stroke_color);
+					_origin_col = adj_entry.maze_col;
+					_origin_row = adj_entry.maze_row;
+				} else if (_origin_row < adj_entry.maze_row) {
+					// we are going down
+					_maze_matrix[_origin_row][_origin_col]->SetDownStrokeOn(
+							true);
+					for (int row = _origin_row + 1; row < adj_entry.maze_row;
+							row++) {
+						_maze_matrix[row][_origin_col]->SetUpStrokeOn(true);
+						_maze_matrix[row][_origin_col]->SetDownStrokeOn(true);
+						_maze_matrix[row][_origin_col]->SetStrokeColor(stroke_color);
+					}
+					_maze_matrix[adj_entry.maze_row][_origin_col]->SetUpStrokeOn(
+							true);
+					_maze_matrix[adj_entry.maze_row][_origin_col]->SetStrokeColor(stroke_color);
+
+					_origin_col = adj_entry.maze_col;
+					_origin_row = adj_entry.maze_row;
+				}
+			}
+		}
+		fprintf(stdout, "\tOrigin is now (%u, %u)\n", _origin_row, _origin_col);
+	}
+
+	// TODO: Make these functions more robust
+	uint32_t GetStartNode() const {
+		for (uint32_t col = 0; col < _maze_matrix.size(); col++) {
+			if (_maze_matrix[0][col]->CanGoUp()) {
+				return _maze_matrix[0][col]->GetNodeIndex();
+			}
+		}
+		return 0;
+	}
+
+	uint32_t GetEndNode() const {
+		uint32_t row = _maze_matrix.size() - 1;
+		for (uint32_t col = 0; col < _maze_matrix.size(); col++) {
+			if (_maze_matrix[row][col]->CanGoDown()) {
+				return _maze_matrix[row][col]->GetNodeIndex();
+			}
+		}
+		return 0;
+	}
+
+	void TravelToNode2D(uint32_t row, uint32_t col, const char* stroke_color) {
+		// TODO: add logic
+	}
+
+	void DrawPath(std::vector<uint32_t> path, const char* color) {
+		// TODO: add logic
+	}
+
+	uint32_t GetCurrentOriginRow() {
+		return _origin_row;
+	}
+
+	uint32_t GetCurrentOriginColumn() {
+		return _origin_col;
+	}
+
+	uint32_t GetCurrentNodeIndex() {
+		return _maze_matrix[_origin_row][_origin_col]->GetNodeIndex();
+	}
+
+	MazeMatrix GetMazeMatrix() {
+		return _maze_matrix;
+	}
+
+private:
+	MazeMatrix _maze_matrix;
+	AdjacencyList _adj_list;
+	uint32_t _origin_row;
+	uint32_t _origin_col;
+	AdjacencyTravelMatrix _adj_matrix;
+	uint32_t _row_count;
+	uint32_t _col_count;
+	NodeIndexToCellMap _index_to_cell_map;
+};
 
 bool line_segment_exists(const Line& line_seg, std::vector<Line*> line_list) {
 	for (std::vector<Line*>::const_iterator line = line_list.begin();
@@ -383,7 +625,7 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
 						"stroke=\"%s\" "
 						"stroke-width=\"%u\" "
 						"stroke-linecap=\"%s\"/>\n", temp_line.x1, temp_line.y1,
-						temp_line.x2, temp_line.y2, COLOR_RED, LINE_WIDTH,
+						temp_line.x2, temp_line.y2, maze_cell->GetStrokeColor(), LINE_WIDTH,
 						STROKE_LINE_CAP_ROUND);
 			}
 			if (maze_cell->UpStrokeIsOn()) {
@@ -397,7 +639,7 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
 						"stroke=\"%s\" "
 						"stroke-width=\"%u\" "
 						"stroke-linecap=\"%s\"/>\n", temp_line.x1, temp_line.y1,
-						temp_line.x2, temp_line.y2, COLOR_RED, LINE_WIDTH,
+						temp_line.x2, temp_line.y2, maze_cell->GetStrokeColor(), LINE_WIDTH,
 						STROKE_LINE_CAP_ROUND);
 			}
 			if (maze_cell->RightStrokeOn()) {
@@ -411,7 +653,7 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
 						"stroke=\"%s\" "
 						"stroke-width=\"%u\" "
 						"stroke-linecap=\"%s\"/>\n", temp_line.x1, temp_line.y1,
-						temp_line.x2, temp_line.y2, COLOR_RED, LINE_WIDTH,
+						temp_line.x2, temp_line.y2, maze_cell->GetStrokeColor(), LINE_WIDTH,
 						STROKE_LINE_CAP_ROUND);
 			}
 			if (maze_cell->DownStrokeOn()) {
@@ -425,7 +667,7 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
 						"stroke=\"%s\" "
 						"stroke-width=\"%u\" "
 						"stroke-linecap=\"%s\"/>\n", temp_line.x1, temp_line.y1,
-						temp_line.x2, temp_line.y2, COLOR_RED, LINE_WIDTH,
+						temp_line.x2, temp_line.y2, maze_cell->GetStrokeColor(), LINE_WIDTH,
 						STROKE_LINE_CAP_ROUND);
 			}
 		}
@@ -644,6 +886,7 @@ int main(int argc, char** argv) {
 		}
 		fprintf(stdout, "\n");
 	}
+	/* // BEGIN Example usage for a 5by5 maze
 	std::string output_path(argv[1]);
 	size_t sub_pos = output_path.find(".svg");
 	if (sub_pos != output_path.npos) {
@@ -651,8 +894,24 @@ int main(int argc, char** argv) {
 	}
 	output_path += "_solution.svg";
 	fprintf(stdout, "Writing solution to %s\n", output_path.c_str());
-	write_solution_to_file(output_path, maze_matrix, line_list,
-			max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);
+	MazeTraveler* mt = new MazeTraveler(maze_matrix, adjacency_list);
+	// call these functions to get starts and end points
+	uint32_t start_node = mt->GetStartNode();
+	uint32_t end_node = mt->GetEndNode();
+	// call this to draw the start line
+	mt->StartTravel(1, COLOR_RED);
+	mt->TravelToNode(0, COLOR_RED);
+	mt->TravelToNode(4, COLOR_RED);
+	mt->TravelToNode(5, COLOR_RED);
+	mt->TravelToNode(9, COLOR_RED);
+	mt->TravelToNode(10, COLOR_RED);
+	mt->TravelToNode(18, COLOR_RED);
+	mt->TravelToNode(17, COLOR_RED);
+	// call this to draw the exit line
+	mt->FinishTravel(COLOR_RED);
+	write_solution_to_file(output_path, mt->GetMazeMatrix(), line_list,
+			max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);*/
+	// END Example
 	return 0;
 }
 
