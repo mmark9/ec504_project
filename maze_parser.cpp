@@ -430,6 +430,45 @@ public:
 		}
 	}
 
+	void ResetOrigin(uint32_t node_index, const char* stroke_color) {
+		if (_index_to_cell_map.find(node_index) == _index_to_cell_map.end())
+			return;
+		uint32_t row = _index_to_cell_map[node_index].maze_row;
+		uint32_t col = _index_to_cell_map[node_index].maze_col;
+		if (row <= _maze_matrix.size() && col <= _maze_matrix.size()) {
+			_origin_row = row;
+			_origin_col = col;
+			_maze_matrix[row][col]->SetStrokeColor(stroke_color);
+		}
+	}
+
+	void StartPath(uint32_t node_index, TravelDirection start_direction, const char* stroke_color) {
+		// TODO: test this
+		if (_index_to_cell_map.find(node_index) == _index_to_cell_map.end())
+			return;
+		uint32_t row = _index_to_cell_map[node_index].maze_row;
+		uint32_t col = _index_to_cell_map[node_index].maze_col;
+		if (row <= _maze_matrix.size() && col <= _maze_matrix.size()) {
+			_origin_row = row;
+			_origin_col = col;
+			_maze_matrix[row][col]->SetStrokeColor(stroke_color);
+			switch(start_direction) {
+			case LEFT:
+				_maze_matrix[row][col]->SetLeftStrokeOn(true);
+				break;
+			case RIGHT:
+				_maze_matrix[row][col]->SetRightStrokeOn(true);
+				break;
+			case UP:
+				_maze_matrix[row][col]->SetUpStrokeOn(true);
+				break;
+			case DOWN:
+				_maze_matrix[row][col]->SetDownStrokeOn(true);
+				break;
+			}
+		}
+	}
+
 	void FinishTravel(const char* stroke_color) {
 		_maze_matrix[_origin_row][_origin_col]->SetStrokeColor(stroke_color);
 		// here we assume entries and exits are always at top or bottom
