@@ -951,6 +951,11 @@ int main(int argc, char** argv) {
 	mt->DrawPath(solution_path, COLOR_RED);
 	// call this to draw the exit line
 	mt->FinishTravel(COLOR_RED);
+	// detour
+	Path detour;
+	mt->ResetOrigin(9, COLOR_BLUE);
+	detour.push_back(13);
+	mt->DrawPath(detour, COLOR_BLUE);
 	write_solution_to_file(output_path, mt->GetMazeMatrix(), line_list,
 			max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);*/
 	// END Example
