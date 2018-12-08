@@ -405,6 +405,31 @@ struct AdjacenyEntry {
     bool is_valid;
 };
 
+struct Node {
+    
+    // Empty Initialization
+    Node() {
+        priority = UINT32_MAX;
+        start_dis = 0;
+        end_dis = 0;
+        previous = 0;
+        queue_pos = 0;
+        path_end = false;
+    }
+
+    uint32_t priority;
+    uint32_t start_dis;
+    uint32_t end_dis;
+    uint32_t previous;
+    uint32_t queue_pos;
+    bool path_end;
+};
+
+// Global Variables for Pathfinding Algorithms
+struct Node* node_list;  // Keeps track of nodes
+uint32_t* priority_heap; // Priority heap for organizing
+uint32_t heapSize = 0;   // Used to maintain the size of the priority heap
+
 typedef std::map<uint32_t, AdjacenyEntry> NodeIndexToCellMap;
 typedef std::vector<std::vector<MazeCell*> > MazeMatrix;
 typedef std::map<uint32_t, std::vector<AdjacenyEntry*> > AdjacencyList;
@@ -823,6 +848,18 @@ int main(int argc, char** argv) {
         cell_window->ResetHorizontalPosition();
         cell_window->ShiftDown(1);
     }
+    node_list = new struct Node[node_index+1];
+    priority_heap = new uint32_t[node_index+1];
+
+    // DELETE: Just to Check if node list created
+    /*fprintf(stdout, "Node List Print Out:\n");
+    for (int iter = 0; iter < node_index+1; iter++) {
+        fprintf(stdout,"Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
+                       node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
+                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
+    }*/
+
+    // build adjacency list
     uint32_t src_col = 0;
     AdjacencyList adjacency_list;
     MazeCell* src_cell = NULL;
@@ -931,8 +968,9 @@ int main(int argc, char** argv) {
         }
         fprintf(stdout, "\n");
     }
-     // BEGIN Example usage for a 5by5 maze
-    /*std::string output_path(argv[1]);
+
+    // BEGIN Example usage for a 5by5 maze
+    std::string output_path(argv[1]);
     size_t sub_pos = output_path.find(".svg");
     if (sub_pos != output_path.npos) {
         output_path = output_path.substr(0, sub_pos);
@@ -947,25 +985,29 @@ int main(int argc, char** argv) {
     Path solution_path;
     // call this to draw the start line
     mt->StartTravel(start_node, COLOR_RED);
-    solution_path.push_back(0);
+    solution_path.push_back(1);
+    solution_path.push_back(7);
+    solution_path.push_back(8);
     solution_path.push_back(4);
     solution_path.push_back(5);
-    solution_path.push_back(9);
-    solution_path.push_back(10);
-    solution_path.push_back(18);
-    solution_path.push_back(17);
+    solution_path.push_back(6);
+    solution_path.push_back(14);
+    solution_path.push_back(13);
     // draw solution path
     mt->DrawPath(solution_path, COLOR_RED);
     // call this to draw the exit line
     mt->FinishTravel(COLOR_RED);
     // detour
     Path detour;
-    mt->ResetOrigin(9, COLOR_BLUE);
-    detour.push_back(13);
+    mt->ResetOrigin(5, COLOR_BLUE);
+    detour.push_back(10);
+    detour.push_back(9);
+    detour.push_back(12);
+    detour.push_back(11);
+    detour.push_back(0);
     mt->DrawPath(detour, COLOR_BLUE);
     write_solution_to_file(output_path, mt->GetMazeMatrix(), line_list,
-            max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);*/
+            max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);
     // END Example
     return 0;
 }
-
