@@ -1,3 +1,9 @@
+/*
+ * EC504 Final Project
+ * Author: Michael Graziano
+ * Author: Miguel Mark
+ */
+
 #include <map>
 #include <vector>
 #include <string>
@@ -427,8 +433,9 @@ struct Node {
 
 // Global Variables for Pathfinding Algorithms
 struct Node* node_list;  // Keeps track of nodes
-uint32_t* priority_heap; // Priority heap for organizing
+uint32_t* minHeap;       // Priority heap for organizing
 uint32_t heapSize = 0;   // Used to maintain the size of the priority heap
+uint32_t maxnodes;       // Holds the size of the node_list, minHeap
 
 typedef std::map<uint32_t, AdjacenyEntry> NodeIndexToCellMap;
 typedef std::vector<std::vector<MazeCell*> > MazeMatrix;
@@ -754,6 +761,129 @@ void write_solution_to_file(const std::string& path, const MazeMatrix& maze,
     fclose(out_fh);
 }
 
+void upHeap(uint32_t new_pos) {
+    /*
+     * Code is imported from Homework_05 coding assignment
+     * Performs the upHeap operation for the priority heap
+     */
+
+    // Variable Declaration:
+    uint32_t temp;                                    // Used to hold data during swaps.
+    uint32_t target = minHeap[new_pos];         // Holds the node being upheaped.
+    uint32_t parent_pos = (new_pos-1)/2;              // Holds the parent index of new_pos.
+    uint32_t parent_node = minHeap[parent_pos]; // Holds the node being compared.
+
+    // Only perform the swap if the element is not the root and the parent is
+    // further away.
+    if (new_pos != 0 && node_list[target].priority < node_list[parent_node].priority) {
+        temp = target;
+        minHeap[new_pos] = parent_node;
+        node_list[parent_node].queue_pos = new_pos;
+        minHeap[parent_pos] = temp;
+        node_list[temp].queue_pos = parent_pos;
+        upHeap(parent_pos);
+    }
+    
+    return;
+}
+
+void downHeap(uint32_t root) {
+
+    /*
+     * Code is imported from Homework_05 coding assignment
+     * Perform the downHeap operation for the priority heap
+     */
+
+    // Variable Declaration:
+    uint32_t left, right, smallest; // Holds the position of the  left child,
+                                    // right child, and the smallest value
+    uint32_t temp;                  // Holds data during swaps.
+
+    // Initialization:
+    left = 2 * root;
+    right = 2 * root + 1;
+    smallest = root;
+
+    // Check 1: See if the closest element is farther than the left child.
+    if (left <= heapSize && 
+        node_list[minHeap[left]].priority < node_list[minHeap[smallest]].priority) {
+        smallest = left;
+    }
+
+    // Check 2: See if the closest element is farther than the right child.
+    if (right <= heapSize &&
+        node_list[minHeap[right]].priority < node_list[minHeap[smallest]].priority) {
+        smallest = right;
+    }
+
+    // Check 3: See if the closest element is the root element.
+    // If not, then the elements must be swapped and a new downHeap is performed.
+    if (smallest != root) {
+        temp = minHeap[root];
+        minHeap[root] = minHeap[smallest];
+        node_list[minHeap[root]].queue_pos = root;
+        minHeap[smallest] = temp;
+        node_list[temp].queue_pos = smallest;
+        downHeap(smallest);
+    }
+
+    return;
+}
+
+void insert(uint32_t node_label) {
+    
+    /*
+     * Code is imported from Homework_05 coding assignment.
+     * Performs the insert operation for the priority heap.
+     */
+
+    // Variable Declaration:
+    uint32_t i; // Index of the element being added.
+    
+    // Check 1: If the heapSize is equal to maxnodes, then skip insert.
+    if (heapSize == maxnodes) { return; }
+    else {
+        heapSize++;
+        i = heapSize - 1;
+        minHeap[i] = node_label;
+        node_list[node_label].queue_pos = i;
+        upHeap(i);
+    }
+
+    return;
+}
+
+uint32_t remove() {
+    
+    /*
+     * Code is imported from Homework_05 coding assignment.
+     * Performs the remove operation for the priority heap.
+     */
+
+    // Variable Declaration:
+    uint32_t ret_node; // Holds the node to be returned from the heap
+
+    // Case 1: If there is nothing to remove, return -1
+    if (heapSize == 0) { return -1; }
+
+    // Case 2: There is only one element in the heap
+    else if (heapSize == 1) {
+        ret_node = minHeap[0];
+        heapSize--;
+    }
+
+    // Case 3: There are more elements that need to be adjusted
+    else {
+        ret_node = minHeap[0];
+        minHeap[0] = minHeap[heapSize - 1];
+        node_list[minHeap[0]].queue_pos = 0;
+        heapSize--;
+        downHeap(0);
+    }
+    
+    return ret_node;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         fprintf(stdout, "usage: %s maze_svg_file\n", argv[0]);
@@ -848,8 +978,9 @@ int main(int argc, char** argv) {
         cell_window->ResetHorizontalPosition();
         cell_window->ShiftDown(1);
     }
-    node_list = new struct Node[node_index+1];
-    priority_heap = new uint32_t[node_index+1];
+    maxnodes = node_index+1;
+    node_list = new struct Node[maxnodes];
+    minHeap = new uint32_t[maxnodes];
 
     // DELETE: Just to Check if node list created
     /*fprintf(stdout, "Node List Print Out:\n");
