@@ -509,10 +509,10 @@ public:
 				_maze_matrix[_origin_row][_origin_col]->GetNodeIndex();
 		AdjacenyEntry adj_entry =\
  _adj_matrix[origin_node_index][node_index];
-		fprintf(stdout, "Attempting to travel from %u to %u..\n",
-				origin_node_index, node_index);
-		fprintf(stdout, "\tOrigin was (%u, %u)\n", _origin_row, _origin_col);
 		if (adj_entry.is_valid) {
+			fprintf(stdout, "Attempting to travel from %u to %u..\n",
+				origin_node_index, node_index);
+			fprintf(stdout, "\tOrigin was (%u, %u)\n", _origin_row, _origin_col);
 			if (_origin_row == adj_entry.maze_row) {
 				if (_origin_col > adj_entry.maze_col) {
 					// we are  moving to the left
@@ -570,8 +570,12 @@ public:
 					_origin_row = adj_entry.maze_row;
 				}
 			}
+			fprintf(stdout, "\tOrigin is now (%u, %u)\n", _origin_row, _origin_col);
+		} else {
+			fprintf(stdout,
+					"Cannot travel from node %u to %u; not connected\n",
+					origin_node_index, node_index);
 		}
-		fprintf(stdout, "\tOrigin is now (%u, %u)\n", _origin_row, _origin_col);
 	}
 
 	// TODO: Make these functions more robust
