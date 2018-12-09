@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <time.h>
 #include "rapidxml.hpp"
 
 const uint32_t LINE_WIDTH = 2;
@@ -26,6 +27,8 @@ const char* COLOR_BLUE = "#0000ff";
 const char* STROKE_LINE_CAP_BUTT = "butt";
 const char* STROKE_LINE_CAP_ROUND = "round";
 const char* STROKE_LINE_CAP_SQUARE = "square";
+
+clock_t clock(void);
 
 struct Line {
     Line() {
@@ -648,6 +651,10 @@ public:
         return _maze_matrix;
     }
 
+    NodeIndexToCellMap GetNodeMap() {
+        return _index_to_cell_map;
+    }
+
 private:
     MazeMatrix _maze_matrix;
     AdjacencyList _adj_list;
@@ -768,11 +775,20 @@ void upHeap(uint32_t new_pos) {
      */
 
     // Variable Declaration:
-    uint32_t temp;                                    // Used to hold data during swaps.
-    uint32_t target = minHeap[new_pos];         // Holds the node being upheaped.
-    uint32_t parent_pos = (new_pos-1)/2;              // Holds the parent index of new_pos.
-    uint32_t parent_node = minHeap[parent_pos]; // Holds the node being compared.
+    uint32_t temp;                                          // Used to hold data during swaps.
+    uint32_t target = minHeap[new_pos];                     // Holds the node being upheaped.
+    uint32_t parent_pos = new_pos != 0 ? (new_pos-1)/2 : 0; // Holds the parent index of new_pos.
+    uint32_t parent_node = minHeap[parent_pos];             // Holds the node being compared.
+//    fprintf(stdout, "Target = %u | Target Pos = %u | Parent_Pos = %u | Parent_Node = %u\n",
+//            target, new_pos, parent_pos, parent_node);
+//    fprintf(stdout, "Target Priority = %u | Parent Node Priority = %u\n",
+//            node_list[target].priority, node_list[parent_node].priority);
 
+    // Checking minHeap prior to upHeap
+/*    fprintf(stdout,"\nminHeap prior to upheap: ");
+    for (uint32_t i = 0; i < heapSize; i++) {
+        fprintf(stdout,"%u, ", minHeap[i]);
+    }*/
     // Only perform the swap if the element is not the root and the parent is
     // further away.
     if (new_pos != 0 && node_list[target].priority < node_list[parent_node].priority) {
@@ -783,6 +799,10 @@ void upHeap(uint32_t new_pos) {
         node_list[temp].queue_pos = parent_pos;
         upHeap(parent_pos);
     }
+/*    fprintf(stdout,"\nminHeap after the upHeap: ");
+    for (uint32_t i = 0; i < heapSize; i++) {
+        fprintf(stdout,"%u, ", minHeap[i]);
+    }*/
     
     return;
 }
@@ -800,8 +820,8 @@ void downHeap(uint32_t root) {
     uint32_t temp;                  // Holds data during swaps.
 
     // Initialization:
-    left = 2 * root;
-    right = 2 * root + 1;
+    left = 2 * root + 1;
+    right = 2 * root + 2;
     smallest = root;
 
     // Check 1: See if the closest element is farther than the left child.
@@ -845,8 +865,10 @@ void insert(uint32_t node_label) {
     else {
         heapSize++;
         i = heapSize - 1;
+//        fprintf(stdout,"Adding node_label %u into heap location %u\n", node_label, i);
         minHeap[i] = node_label;
         node_list[node_label].queue_pos = i;
+//        fprintf(stdout,"Going into upHeap...\n");
         upHeap(i);
     }
 
@@ -882,6 +904,98 @@ uint32_t remove() {
     }
     
     return ret_node;
+}
+
+bool Relax_Dijkstra(uint32_t b_node, uint32_t e_node, uint32_t weight) {
+    
+    /*
+     * Code is imported from Homework_05 coding assignment.
+     * Performs the Relaxation step of Dijkstra algorithm
+     */
+
+    if (node_list[e_node].priority > node_list[b_node].priority + weight) {
+        node_list[e_node].priority = node_list[b_node].priority + weight;
+        node_list[e_node].previous = b_node;
+        return true;
+    }
+    
+    return false;
+}
+
+double Dijkstra(uint32_t start_node, uint32_t end_node,
+                AdjacencyList adjacency_list) {
+    
+    /*
+     * Performs the Dijkstra Pathfinding Algorithm and returns operation time.
+     */
+
+    // Variable Declaration:
+    uint32_t target;                              // Holds the current target node for initialization.
+    std::vector<AdjacenyEntry*>::iterator cursor; // Holds the pointer to the removed node.
+    clock_t start_time, end_time;                 // Used to time the algorithm.
+
+
+    // Begin the timer
+    start_time = clock();
+
+    // Step 1: Initialize the distance from the start node to 0, then create the 
+    // heap structure.
+//    fprintf(stdout, "Starting Initialization...\n");
+    node_list[start_node].priority = 0;
+    for (target = 0; target < maxnodes; target++) {
+//        fprintf(stdout, "Inserting node %u\n", target);
+        insert(target);
+    }
+
+
+    // Step 2: Remove elements from the heap and relax the appropriate edges.
+    while (heapSize != 0) {
+//        fprintf(stdout, "\nNode List Prior to Removal of %u:\n", minHeap[0]);
+//        for (int iter = 0; iter < maxnodes; iter++) {
+//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
+//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
+//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
+//        }
+        target = remove();
+//        fprintf(stdout, "\nLooking at node %u next...\n", target);
+//        fprintf(stdout, "\nNode List After Removal of %u:\n", target);
+//        for (int iter = 0; iter < maxnodes; iter++) {
+//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
+//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
+//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
+//        }
+//        fprintf(stdout,"minHeap after pop: ");
+//        for (uint32_t i = 0; i < heapSize; i++) {
+//            fprintf(stdout,"%u, ", minHeap[i]);
+//        }
+//        fprintf(stdout, "\n");
+        if (target == end_node) { break; }
+        for(cursor = adjacency_list[target].begin(); cursor != adjacency_list[target].end();
+            cursor++) {
+//            fprintf(stdout, "Relaxing node %u...Priority %u to", (*cursor)->node_index,
+//                    node_list[(*cursor)->node_index].priority);
+            if (Relax_Dijkstra(target, (*cursor)->node_index, (*cursor)->edge_value)) {
+//                fprintf(stdout, " %u\n", node_list[(*cursor)->node_index].priority);
+                upHeap(node_list[(*cursor)->node_index].queue_pos);
+            } /*else {
+                fprintf(stdout, " same\n");
+            }*/
+        }
+//        fprintf(stdout,"\nNode List after relaxation with %u:\n", target);
+//        for (int iter = 0; iter < maxnodes; iter++) {
+//        fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
+//                       iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
+//                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
+//        }
+//        for (uint32_t i = 0; i < heapSize; i++) {
+//            fprintf(stdout,"%u, ", minHeap[i]);
+//        }
+//        fprintf(stdout, "\n");
+    }
+    
+    end_time = clock();
+    
+    return (double)(end_time-start_time)/CLOCKS_PER_SEC;
 }
 
 int main(int argc, char** argv) {
@@ -978,7 +1092,7 @@ int main(int argc, char** argv) {
         cell_window->ResetHorizontalPosition();
         cell_window->ShiftDown(1);
     }
-    maxnodes = node_index+1;
+    maxnodes = node_index;
     node_list = new struct Node[maxnodes];
     minHeap = new uint32_t[maxnodes];
 
@@ -1107,16 +1221,33 @@ int main(int argc, char** argv) {
         output_path = output_path.substr(0, sub_pos);
     }
     output_path += "_solution.svg";
-    fprintf(stdout, "Writing solution to %s\n", output_path.c_str());
+//    fprintf(stdout, "Writing solution to %s\n", output_path.c_str());
     MazeTraveler* mt = new MazeTraveler(maze_matrix, adjacency_list);
     // call these functions to get starts and end points
     uint32_t start_node = mt->GetStartNode();
     uint32_t end_node = mt->GetEndNode();
+    NodeIndexToCellMap node_check = mt->GetNodeMap();
+    double algorithm_time = Dijkstra(start_node, end_node, adjacency_list);
+    fprintf(stdout, "Dijkstra Time = %f seconds\n", algorithm_time);
+/*    fprintf(stdout, "Node List Print Out:\n");
+    for (int iter = 0; iter < node_index; iter++) {
+        fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
+                       iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
+                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
+    }*/
     // create path
     Path solution_path;
+    uint32_t path_ptr = end_node;
+    solution_path.push_back(path_ptr);
+    while (path_ptr != start_node) {
+//        fprintf(stdout,"Adding %u to the path...\n", node_list[path_ptr].previous);
+        solution_path.push_back(node_list[path_ptr].previous);
+        path_ptr = node_list[path_ptr].previous;
+    }
+    std::reverse(solution_path.begin(), solution_path.end());
     // call this to draw the start line
     mt->StartTravel(start_node, COLOR_RED);
-    solution_path.push_back(1);
+/*    solution_path.push_back(1);
     solution_path.push_back(7);
     solution_path.push_back(8);
     solution_path.push_back(4);
@@ -1124,19 +1255,19 @@ int main(int argc, char** argv) {
     solution_path.push_back(6);
     solution_path.push_back(14);
     solution_path.push_back(13);
-    // draw solution path
+    // draw solution path*/
     mt->DrawPath(solution_path, COLOR_RED);
     // call this to draw the exit line
     mt->FinishTravel(COLOR_RED);
     // detour
-    Path detour;
+/*    Path detour;
     mt->ResetOrigin(5, COLOR_BLUE);
     detour.push_back(10);
     detour.push_back(9);
     detour.push_back(12);
     detour.push_back(11);
     detour.push_back(0);
-    mt->DrawPath(detour, COLOR_BLUE);
+    mt->DrawPath(detour, COLOR_BLUE);*/
     write_solution_to_file(output_path, mt->GetMazeMatrix(), line_list,
             max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);
     // END Example
