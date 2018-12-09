@@ -947,7 +947,6 @@ double Dijkstra(uint32_t start_node, uint32_t end_node,
         insert(target);
     }
 
-
     // Step 2: Remove elements from the heap and relax the appropriate edges.
     while (heapSize != 0) {
 //        fprintf(stdout, "\nNode List Prior to Removal of %u:\n", minHeap[0]);
@@ -975,6 +974,96 @@ double Dijkstra(uint32_t start_node, uint32_t end_node,
 //            fprintf(stdout, "Relaxing node %u...Priority %u to", (*cursor)->node_index,
 //                    node_list[(*cursor)->node_index].priority);
             if (Relax_Dijkstra(target, (*cursor)->node_index, (*cursor)->edge_value)) {
+//                fprintf(stdout, " %u\n", node_list[(*cursor)->node_index].priority);
+                upHeap(node_list[(*cursor)->node_index].queue_pos);
+            } /*else {
+                fprintf(stdout, " same\n");
+            }*/
+        }
+//        fprintf(stdout,"\nNode List after relaxation with %u:\n", target);
+//        for (int iter = 0; iter < maxnodes; iter++) {
+//        fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
+//                       iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
+//                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
+//        }
+//        for (uint32_t i = 0; i < heapSize; i++) {
+//            fprintf(stdout,"%u, ", minHeap[i]);
+//        }
+//        fprintf(stdout, "\n");
+    }
+    
+    end_time = clock();
+    
+    return (double)(end_time-start_time)/CLOCKS_PER_SEC;
+}
+
+bool Discover_GreedyBest(uint32_t b_node, uint32_t e_node) {
+    
+    /*
+     * Performs the Discovery step of Greedy Best First Search algorithm
+     */
+
+    if (node_list[e_node].priority == UINT32_MAX ) {
+        node_list[e_node].priority = node_list[e_node].end_dis;
+        node_list[e_node].previous = b_node;
+        return true;
+    }
+    
+    return false;
+}
+
+double GreedyBest(uint32_t start_node, uint32_t end_node,
+                  AdjacencyList adjacency_list) {
+    
+    /*
+     * Performs the Dijkstra Pathfinding Algorithm and returns operation time.
+     */
+
+    // Variable Declaration:
+    uint32_t target;                              // Holds the current target node for initialization.
+    std::vector<AdjacenyEntry*>::iterator cursor; // Holds the pointer to the removed node.
+    clock_t start_time, end_time;                 // Used to time the algorithm.
+
+
+    // Begin the timer
+    start_time = clock();
+
+    // Step 1: Initialize the distance from the start node to 0, then create the 
+    // heap structure.
+//    fprintf(stdout, "Starting Initialization...\n");
+    node_list[start_node].priority = node_list[start_node].end_dis;
+    for (target = 0; target < maxnodes; target++) {
+//        fprintf(stdout, "Inserting node %u\n", target);
+        insert(target);
+    }
+
+    // Step 2: Remove elements from the heap and relax the appropriate edges.
+    while (heapSize != 0) {
+//        fprintf(stdout, "\nNode List Prior to Removal of %u:\n", minHeap[0]);
+//        for (int iter = 0; iter < maxnodes; iter++) {
+//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
+//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
+//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
+//        }
+        target = remove();
+//        fprintf(stdout, "\nLooking at node %u next...\n", target);
+//        fprintf(stdout, "\nNode List After Removal of %u:\n", target);
+//        for (int iter = 0; iter < maxnodes; iter++) {
+//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
+//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
+//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
+//        }
+//        fprintf(stdout,"minHeap after pop: ");
+//        for (uint32_t i = 0; i < heapSize; i++) {
+//            fprintf(stdout,"%u, ", minHeap[i]);
+//        }
+//        fprintf(stdout, "\n");
+        if (target == end_node) { break; }
+        for(cursor = adjacency_list[target].begin(); cursor != adjacency_list[target].end();
+            cursor++) {
+//            fprintf(stdout, "Relaxing node %u...Priority %u to", (*cursor)->node_index,
+//                    node_list[(*cursor)->node_index].priority);
+            if (Discover_GreedyBest(target, (*cursor)->node_index)) {
 //                fprintf(stdout, " %u\n", node_list[(*cursor)->node_index].priority);
                 upHeap(node_list[(*cursor)->node_index].queue_pos);
             } /*else {
@@ -1227,8 +1316,14 @@ int main(int argc, char** argv) {
     uint32_t start_node = mt->GetStartNode();
     uint32_t end_node = mt->GetEndNode();
     NodeIndexToCellMap node_check = mt->GetNodeMap();
-    double algorithm_time = Dijkstra(start_node, end_node, adjacency_list);
-    fprintf(stdout, "Dijkstra Time = %f seconds\n", algorithm_time);
+    for (uint32_t iter = 0; iter < maxnodes; iter++) {
+        node_list[iter].end_dis = abs((int)(node_check[end_node].maze_row - node_check[iter].maze_row)) +
+                                  abs((int)(node_check[end_node].maze_col - node_check[iter].maze_col));
+    }
+//    double algorithm_time = Dijkstra(start_node, end_node, adjacency_list);
+    double algorithm_time = GreedyBest(start_node, end_node, adjacency_list);
+//    fprintf(stdout, "Dijkstra Time = %f seconds\n", algorithm_time);
+    fprintf(stdout, "Greedy Best Time = %f seconds\n", algorithm_time);
 /*    fprintf(stdout, "Node List Print Out:\n");
     for (int iter = 0; iter < node_index; iter++) {
         fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
