@@ -423,7 +423,17 @@ struct Node {
         end_dis = 0;
         previous = 0;
         queue_pos = 0;
-        path_end = false;
+        dead_end = false;
+    }
+
+    // Used for setting the node for pathfinding algorithm    
+    void Setup(uint32_t distance) {
+        priority = UINT32_MAX;
+        start_dis = UINT32_MAX;
+        end_dis = distance;
+        previous = 0;
+        queue_pos = 0;
+        dead_end = false;
     }
 
     uint32_t priority;
@@ -431,7 +441,7 @@ struct Node {
     uint32_t end_dis;
     uint32_t previous;
     uint32_t queue_pos;
-    bool path_end;
+    bool dead_end;
 };
 
 // Global Variables for Pathfinding Algorithms
@@ -632,6 +642,15 @@ public:
     void DrawPath(const Path& path, const char* stroke_color) {
         for (Path::const_iterator node = path.begin(); node != path.end(); node++) {
             this->TravelToNode(*node, stroke_color);
+        }
+    }
+
+    void ClearPath() {
+        for (uint32_t row = 0; row < _maze_matrix.size(); row++) {
+            for (uint32_t col = 0; col < _maze_matrix.size(); col++) {
+                _maze_matrix[row][col]->ClearStrokes();
+                _maze_matrix[row][col]->ClearStrokeColors();
+            }
         }
     }
 
@@ -918,6 +937,7 @@ double Dijkstra(uint32_t start_node, uint32_t end_node,
     uint32_t target;                              // Holds the target node for initialization.
     std::vector<AdjacenyEntry*>::iterator cursor; // Holds the pointer to the removed node.
     clock_t start_time, end_time;                 // Used to time the algorithm.
+    bool dead_end;                                // Used to indicate if a dead end was discoverd.
 
     // Begin the timer
     start_time = clock();
@@ -931,14 +951,17 @@ double Dijkstra(uint32_t start_node, uint32_t end_node,
 
     // Step 2: Remove elements from the heap and relax the appropriate edges.
     while (heapSize != 0) {
+        dead_end = true;
         target = remove();
         if (target == end_node) { break; }
         for(cursor = adjacency_list[target].begin(); cursor != adjacency_list[target].end();
             cursor++) {
             if (Relax_Dijkstra(target, (*cursor)->node_index, (*cursor)->edge_value)) {
+                dead_end = false;
                 upHeap(node_list[(*cursor)->node_index].queue_pos);
             } 
         }
+        node_list[target].dead_end = dead_end;
     }
     
     end_time = clock();
@@ -974,12 +997,14 @@ double Astar(uint32_t start_node, uint32_t end_node,
     uint32_t target;                              // Holds the target node for initialization.
     std::vector<AdjacenyEntry*>::iterator cursor; // Holds the pointer to the removed node.
     clock_t start_time, end_time;                 // Used to time the algorithm.
+    bool dead_end;                                // Used to indicate if a dead end was discoverd.
 
     // Begin the timer
     start_time = clock();
 
     // Step 1: Initialize the distance from the start node to 0, then create the 
     // heap structure.
+    node_list[start_node].start_dis = 0;
     node_list[start_node].priority = node_list[start_node].start_dis + node_list[start_node].end_dis;
     for (target = 0; target < maxnodes; target++) {
         insert(target);
@@ -987,14 +1012,17 @@ double Astar(uint32_t start_node, uint32_t end_node,
 
     // Step 2: Remove elements from the heap and relax the appropriate edges.
     while (heapSize != 0) {
+        dead_end = true;
         target = remove();
         if (target == end_node) { break; }
         for(cursor = adjacency_list[target].begin(); cursor != adjacency_list[target].end();
             cursor++) {
             if (Relax_Astar(target, (*cursor)->node_index, (*cursor)->edge_value)) {
+                dead_end = false;
                 upHeap(node_list[(*cursor)->node_index].queue_pos);
             } 
         }
+        node_list[target].dead_end = dead_end;
     }
     
     end_time = clock();
@@ -1028,6 +1056,7 @@ double GreedyBest(uint32_t start_node, uint32_t end_node,
     uint32_t target;                              // Holds the current target node for initialization.
     std::vector<AdjacenyEntry*>::iterator cursor; // Holds the pointer to the removed node.
     clock_t start_time, end_time;                 // Used to time the algorithm.
+    bool dead_end;                                // Used to indicate if a dead end was discoverd.
 
     // Begin the timer
     start_time = clock();
@@ -1041,14 +1070,17 @@ double GreedyBest(uint32_t start_node, uint32_t end_node,
 
     // Step 2: Remove elements from the heap and relax the appropriate edges.
     while (heapSize != 0) {
+        dead_end = true;
         target = remove();
         if (target == end_node) { break; }
         for(cursor = adjacency_list[target].begin(); cursor != adjacency_list[target].end();
             cursor++) {
             if (Discover_GreedyBest(target, (*cursor)->node_index)) {
+                dead_end = false;
                 upHeap(node_list[(*cursor)->node_index].queue_pos);
             } 
         }
+        node_list[target].dead_end = dead_end;
     }
     
     end_time = clock();
@@ -1264,64 +1296,85 @@ int main(int argc, char** argv) {
         fprintf(stdout, "\n");
     }
 
-    // BEGIN Example usage for a 5by5 maze
     std::string output_path(argv[1]);
     size_t sub_pos = output_path.find(".svg");
     if (sub_pos != output_path.npos) {
         output_path = output_path.substr(0, sub_pos);
     }
-    output_path += "_solution.svg";
+    std::string answer_file[3] = { output_path + "_Dijkstra_solution.svg",
+                                   output_path + "_GreedyBest_solution.svg",
+                                   output_path + "_Astar_solution.svg" };
     MazeTraveler* mt = new MazeTraveler(maze_matrix, adjacency_list);
     // call these functions to get starts and end points
     uint32_t start_node = mt->GetStartNode();
     uint32_t end_node = mt->GetEndNode();
     NodeIndexToCellMap node_check = mt->GetNodeMap();
-    for (uint32_t iter = 0; iter < maxnodes; iter++) {
-        if (iter == start_node) { node_list[iter].start_dis = 0; }
-        else { node_list[iter].start_dis = UINT32_MAX; }
-        node_list[iter].end_dis = abs((int)(node_check[end_node].maze_row - node_check[iter].maze_row)) +
-                                  abs((int)(node_check[end_node].maze_col - node_check[iter].maze_col));
-    }
-//    double algorithm_time = Dijkstra(start_node, end_node, adjacency_list);
-//    double algorithm_time = GreedyBest(start_node, end_node, adjacency_list);
-    double algorithm_time = Astar(start_node, end_node, adjacency_list);
-//    fprintf(stdout, "Dijkstra Time = %f seconds\n", algorithm_time);
-//    fprintf(stdout, "Greedy Best Time = %f seconds\n", algorithm_time);
-    fprintf(stdout, "Astar = %f seconds\n", algorithm_time);
-    // create path
     Path solution_path;
-    uint32_t path_ptr = end_node;
-    solution_path.push_back(path_ptr);
-    while (path_ptr != start_node) {
-        solution_path.push_back(node_list[path_ptr].previous);
-        path_ptr = node_list[path_ptr].previous;
+    uint32_t path_ptr;
+    uint32_t end_distance;
+    double algorithm_time;
+    for (int pathfinder = 0; pathfinder < 3; pathfinder++) {
+        // Setup node_list & Reset Maze Traveler and heapSize;
+        for (uint32_t iter = 0; iter < maxnodes; iter++) {
+            end_distance = abs((int)(node_check[end_node].maze_row - node_check[iter].maze_row)) +
+                           abs((int)(node_check[end_node].maze_col - node_check[iter].maze_col));
+            node_list[iter].Setup(end_distance);
+            fprintf(stdout, "Node Number %u | Priority = %u | Start_Dis = %u | End_Dis = %u | Previous = %u | Queue_Pos = %u | Dead_End = %s\n", iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous, node_list[iter].queue_pos, node_list[iter].dead_end ? "True" : "False");
+        }
+        mt->ClearPath();
+        heapSize = 0;
+        // Perform pathfinding algorithm
+        switch (pathfinder) {
+            case 0: fprintf(stdout, "Starting Dijkstra Algorithm...");
+                    algorithm_time = Dijkstra(start_node, end_node, adjacency_list);
+                    fprintf(stdout, "Done.\nDijkstra Time = %f seconds\n", algorithm_time);
+                    break;
+            case 1: fprintf(stdout, "Starting Greedy Best Algorithm...");
+                    algorithm_time = GreedyBest(start_node, end_node, adjacency_list);
+                    fprintf(stdout, "Done.\nGreedy Best Time = %f seconds\n", algorithm_time);
+                    break;
+            case 2: fprintf(stdout, "Starting A* Algorithm...");
+                    algorithm_time = Astar(start_node, end_node, adjacency_list);
+                    fprintf(stdout, "Done.\nA* Time = %f seconds\n", algorithm_time);
+                    break;
+        }
+        // create path
+        for (uint32_t iter = 0; iter < maxnodes; iter++) {
+            fprintf(stdout, "Node Number %u | Priority = %u | Start_Dis = %u | End_Dis = %u | Previous = %u | Queue_Pos = %u | Dead_End = %s\n", iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous, node_list[iter].queue_pos, node_list[iter].dead_end ? "True" : "False");
+        }
+        fprintf(stdout, "Saving path to %s --- ", answer_file[pathfinder].c_str());
+        for (uint32_t iter = 0; iter < maxnodes; iter++) {
+            if (node_list[iter].dead_end && iter != end_node) {
+                solution_path.clear();
+                path_ptr = iter;
+                solution_path.push_back(path_ptr);
+                while (path_ptr != start_node) {
+                    solution_path.push_back(node_list[path_ptr].previous);
+                    path_ptr = node_list[path_ptr].previous;
+                }
+                std::reverse(solution_path.begin(), solution_path.end());
+                // call this to draw the start line
+                mt->StartTravel(start_node, COLOR_BLUE);
+                // draw solution path*/
+                mt->DrawPath(solution_path, COLOR_BLUE);
+                write_solution_to_file(answer_file[pathfinder], mt->GetMazeMatrix(), line_list,
+                        max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);
+            }
+        }
+        solution_path.clear();
+        path_ptr = end_node;
+        solution_path.push_back(path_ptr);
+        while (path_ptr != start_node) {
+            solution_path.push_back(node_list[path_ptr].previous);
+            path_ptr = node_list[path_ptr].previous;
+        }
+        std::reverse(solution_path.begin(), solution_path.end());
+        mt->StartTravel(start_node, COLOR_RED);
+        mt->DrawPath(solution_path, COLOR_RED);
+        mt->FinishTravel(COLOR_RED);
+        write_solution_to_file(answer_file[pathfinder], mt->GetMazeMatrix(), line_list,
+                max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);
+        fprintf(stdout, "Done.\n\n");
     }
-    std::reverse(solution_path.begin(), solution_path.end());
-    // call this to draw the start line
-    mt->StartTravel(start_node, COLOR_RED);
-/*    solution_path.push_back(1);
-    solution_path.push_back(7);
-    solution_path.push_back(8);
-    solution_path.push_back(4);
-    solution_path.push_back(5);
-    solution_path.push_back(6);
-    solution_path.push_back(14);
-    solution_path.push_back(13);
-    // draw solution path*/
-    mt->DrawPath(solution_path, COLOR_RED);
-    // call this to draw the exit line
-    mt->FinishTravel(COLOR_RED);
-    // detour
-/*    Path detour;
-    mt->ResetOrigin(5, COLOR_BLUE);
-    detour.push_back(10);
-    detour.push_back(9);
-    detour.push_back(12);
-    detour.push_back(11);
-    detour.push_back(0);
-    mt->DrawPath(detour, COLOR_BLUE);*/
-    write_solution_to_file(output_path, mt->GetMazeMatrix(), line_list,
-            max_x2 + LINE_WIDTH, max_x2 + LINE_WIDTH);
-    // END Example
     return 0;
 }
