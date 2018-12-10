@@ -419,7 +419,7 @@ struct Node {
     // Empty Initialization
     Node() {
         priority = UINT32_MAX;
-        start_dis = 0;
+        start_dis = UINT32_MAX;
         end_dis = 0;
         previous = 0;
         queue_pos = 0;
@@ -779,16 +779,7 @@ void upHeap(uint32_t new_pos) {
     uint32_t target = minHeap[new_pos];                     // Holds the node being upheaped.
     uint32_t parent_pos = new_pos != 0 ? (new_pos-1)/2 : 0; // Holds the parent index of new_pos.
     uint32_t parent_node = minHeap[parent_pos];             // Holds the node being compared.
-//    fprintf(stdout, "Target = %u | Target Pos = %u | Parent_Pos = %u | Parent_Node = %u\n",
-//            target, new_pos, parent_pos, parent_node);
-//    fprintf(stdout, "Target Priority = %u | Parent Node Priority = %u\n",
-//            node_list[target].priority, node_list[parent_node].priority);
 
-    // Checking minHeap prior to upHeap
-/*    fprintf(stdout,"\nminHeap prior to upheap: ");
-    for (uint32_t i = 0; i < heapSize; i++) {
-        fprintf(stdout,"%u, ", minHeap[i]);
-    }*/
     // Only perform the swap if the element is not the root and the parent is
     // further away.
     if (new_pos != 0 && node_list[target].priority < node_list[parent_node].priority) {
@@ -799,10 +790,6 @@ void upHeap(uint32_t new_pos) {
         node_list[temp].queue_pos = parent_pos;
         upHeap(parent_pos);
     }
-/*    fprintf(stdout,"\nminHeap after the upHeap: ");
-    for (uint32_t i = 0; i < heapSize; i++) {
-        fprintf(stdout,"%u, ", minHeap[i]);
-    }*/
     
     return;
 }
@@ -865,10 +852,8 @@ void insert(uint32_t node_label) {
     else {
         heapSize++;
         i = heapSize - 1;
-//        fprintf(stdout,"Adding node_label %u into heap location %u\n", node_label, i);
         minHeap[i] = node_label;
         node_list[node_label].queue_pos = i;
-//        fprintf(stdout,"Going into upHeap...\n");
         upHeap(i);
     }
 
@@ -930,66 +915,30 @@ double Dijkstra(uint32_t start_node, uint32_t end_node,
      */
 
     // Variable Declaration:
-    uint32_t target;                              // Holds the current target node for initialization.
+    uint32_t target;                              // Holds the target node for initialization.
     std::vector<AdjacenyEntry*>::iterator cursor; // Holds the pointer to the removed node.
     clock_t start_time, end_time;                 // Used to time the algorithm.
-
 
     // Begin the timer
     start_time = clock();
 
     // Step 1: Initialize the distance from the start node to 0, then create the 
     // heap structure.
-//    fprintf(stdout, "Starting Initialization...\n");
     node_list[start_node].priority = 0;
     for (target = 0; target < maxnodes; target++) {
-//        fprintf(stdout, "Inserting node %u\n", target);
         insert(target);
     }
 
     // Step 2: Remove elements from the heap and relax the appropriate edges.
     while (heapSize != 0) {
-//        fprintf(stdout, "\nNode List Prior to Removal of %u:\n", minHeap[0]);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
         target = remove();
-//        fprintf(stdout, "\nLooking at node %u next...\n", target);
-//        fprintf(stdout, "\nNode List After Removal of %u:\n", target);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
-//        fprintf(stdout,"minHeap after pop: ");
-//        for (uint32_t i = 0; i < heapSize; i++) {
-//            fprintf(stdout,"%u, ", minHeap[i]);
-//        }
-//        fprintf(stdout, "\n");
         if (target == end_node) { break; }
         for(cursor = adjacency_list[target].begin(); cursor != adjacency_list[target].end();
             cursor++) {
-//            fprintf(stdout, "Relaxing node %u...Priority %u to", (*cursor)->node_index,
-//                    node_list[(*cursor)->node_index].priority);
             if (Relax_Dijkstra(target, (*cursor)->node_index, (*cursor)->edge_value)) {
-//                fprintf(stdout, " %u\n", node_list[(*cursor)->node_index].priority);
                 upHeap(node_list[(*cursor)->node_index].queue_pos);
-            } /*else {
-                fprintf(stdout, " same\n");
-            }*/
+            } 
         }
-//        fprintf(stdout,"\nNode List after relaxation with %u:\n", target);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//        fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                       iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
-//        for (uint32_t i = 0; i < heapSize; i++) {
-//            fprintf(stdout,"%u, ", minHeap[i]);
-//        }
-//        fprintf(stdout, "\n");
     }
     
     end_time = clock();
@@ -1022,66 +971,30 @@ double Astar(uint32_t start_node, uint32_t end_node,
      */
 
     // Variable Declaration:
-    uint32_t target;                              // Holds the current target node for initialization.
+    uint32_t target;                              // Holds the target node for initialization.
     std::vector<AdjacenyEntry*>::iterator cursor; // Holds the pointer to the removed node.
     clock_t start_time, end_time;                 // Used to time the algorithm.
-
 
     // Begin the timer
     start_time = clock();
 
     // Step 1: Initialize the distance from the start node to 0, then create the 
     // heap structure.
-//    fprintf(stdout, "Starting Initialization...\n");
     node_list[start_node].priority = node_list[start_node].start_dis + node_list[start_node].end_dis;
     for (target = 0; target < maxnodes; target++) {
-//        fprintf(stdout, "Inserting node %u\n", target);
         insert(target);
     }
 
     // Step 2: Remove elements from the heap and relax the appropriate edges.
     while (heapSize != 0) {
-//        fprintf(stdout, "\nNode List Prior to Removal of %u:\n", minHeap[0]);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
         target = remove();
-//        fprintf(stdout, "\nLooking at node %u next...\n", target);
-//        fprintf(stdout, "\nNode List After Removal of %u:\n", target);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
-//        fprintf(stdout,"minHeap after pop: ");
-//        for (uint32_t i = 0; i < heapSize; i++) {
-//            fprintf(stdout,"%u, ", minHeap[i]);
-//        }
-//        fprintf(stdout, "\n");
         if (target == end_node) { break; }
         for(cursor = adjacency_list[target].begin(); cursor != adjacency_list[target].end();
             cursor++) {
-//            fprintf(stdout, "Relaxing node %u...Priority %u to", (*cursor)->node_index,
-//                    node_list[(*cursor)->node_index].priority);
             if (Relax_Astar(target, (*cursor)->node_index, (*cursor)->edge_value)) {
-//                fprintf(stdout, " %u\n", node_list[(*cursor)->node_index].priority);
                 upHeap(node_list[(*cursor)->node_index].queue_pos);
-            } /*else {
-                fprintf(stdout, " same\n");
-            }*/
+            } 
         }
-//        fprintf(stdout,"\nNode List after relaxation with %u:\n", target);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//        fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                       iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
-//        for (uint32_t i = 0; i < heapSize; i++) {
-//            fprintf(stdout,"%u, ", minHeap[i]);
-//        }
-//        fprintf(stdout, "\n");
     }
     
     end_time = clock();
@@ -1116,62 +1029,26 @@ double GreedyBest(uint32_t start_node, uint32_t end_node,
     std::vector<AdjacenyEntry*>::iterator cursor; // Holds the pointer to the removed node.
     clock_t start_time, end_time;                 // Used to time the algorithm.
 
-
     // Begin the timer
     start_time = clock();
 
     // Step 1: Initialize the distance from the start node to 0, then create the 
     // heap structure.
-//    fprintf(stdout, "Starting Initialization...\n");
     node_list[start_node].priority = node_list[start_node].end_dis;
     for (target = 0; target < maxnodes; target++) {
-//        fprintf(stdout, "Inserting node %u\n", target);
         insert(target);
     }
 
     // Step 2: Remove elements from the heap and relax the appropriate edges.
     while (heapSize != 0) {
-//        fprintf(stdout, "\nNode List Prior to Removal of %u:\n", minHeap[0]);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
         target = remove();
-//        fprintf(stdout, "\nLooking at node %u next...\n", target);
-//        fprintf(stdout, "\nNode List After Removal of %u:\n", target);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//            fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                           iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                           node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
-//        fprintf(stdout,"minHeap after pop: ");
-//        for (uint32_t i = 0; i < heapSize; i++) {
-//            fprintf(stdout,"%u, ", minHeap[i]);
-//        }
-//        fprintf(stdout, "\n");
         if (target == end_node) { break; }
         for(cursor = adjacency_list[target].begin(); cursor != adjacency_list[target].end();
             cursor++) {
-//            fprintf(stdout, "Relaxing node %u...Priority %u to", (*cursor)->node_index,
-//                    node_list[(*cursor)->node_index].priority);
             if (Discover_GreedyBest(target, (*cursor)->node_index)) {
-//                fprintf(stdout, " %u\n", node_list[(*cursor)->node_index].priority);
                 upHeap(node_list[(*cursor)->node_index].queue_pos);
-            } /*else {
-                fprintf(stdout, " same\n");
-            }*/
+            } 
         }
-//        fprintf(stdout,"\nNode List after relaxation with %u:\n", target);
-//        for (int iter = 0; iter < maxnodes; iter++) {
-//        fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-//                       iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-//                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-//        }
-//        for (uint32_t i = 0; i < heapSize; i++) {
-//            fprintf(stdout,"%u, ", minHeap[i]);
-//        }
-//        fprintf(stdout, "\n");
     }
     
     end_time = clock();
@@ -1276,14 +1153,6 @@ int main(int argc, char** argv) {
     maxnodes = node_index;
     node_list = new struct Node[maxnodes];
     minHeap = new uint32_t[maxnodes];
-
-    // DELETE: Just to Check if node list created
-    /*fprintf(stdout, "Node List Print Out:\n");
-    for (int iter = 0; iter < node_index+1; iter++) {
-        fprintf(stdout,"Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-                       node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-    }*/
 
     // build adjacency list
     uint32_t src_col = 0;
@@ -1402,7 +1271,6 @@ int main(int argc, char** argv) {
         output_path = output_path.substr(0, sub_pos);
     }
     output_path += "_solution.svg";
-//    fprintf(stdout, "Writing solution to %s\n", output_path.c_str());
     MazeTraveler* mt = new MazeTraveler(maze_matrix, adjacency_list);
     // call these functions to get starts and end points
     uint32_t start_node = mt->GetStartNode();
@@ -1420,18 +1288,11 @@ int main(int argc, char** argv) {
 //    fprintf(stdout, "Dijkstra Time = %f seconds\n", algorithm_time);
 //    fprintf(stdout, "Greedy Best Time = %f seconds\n", algorithm_time);
     fprintf(stdout, "Astar = %f seconds\n", algorithm_time);
-/*    fprintf(stdout, "Node List Print Out:\n");
-    for (int iter = 0; iter < node_index; iter++) {
-        fprintf(stdout,"Node = %u | Priority = %u | Start Distance = %u | End Distance = %u | Previous = %u | Queue Position = %u | Path End = %s\n",
-                       iter, node_list[iter].priority, node_list[iter].start_dis, node_list[iter].end_dis, node_list[iter].previous,
-                       node_list[iter].queue_pos, node_list[iter].path_end ? "TRUE" : "FALSE");
-    }*/
     // create path
     Path solution_path;
     uint32_t path_ptr = end_node;
     solution_path.push_back(path_ptr);
     while (path_ptr != start_node) {
-//        fprintf(stdout,"Adding %u to the path...\n", node_list[path_ptr].previous);
         solution_path.push_back(node_list[path_ptr].previous);
         path_ptr = node_list[path_ptr].previous;
     }
