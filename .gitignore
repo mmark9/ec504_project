@@ -126,3 +126,8 @@ dmypy.json
 
 # End of https://www.gitignore.io/api/python
 
+# SVG files
+*.svg
+
+# build directory
+build/
