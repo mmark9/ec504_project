@@ -498,7 +498,8 @@ public:
 		if (_maze_matrix[_origin_row][_origin_col]->CanGoUp()) {
 			_maze_matrix[_origin_row][_origin_col]->SetUpStrokeOn(true,
 					stroke_color);
-		} else if (_maze_matrix[_origin_row][_origin_col]->CanGoDown()) {
+		}
+		if (_maze_matrix[_origin_row][_origin_col]->CanGoDown()) {
 			_maze_matrix[_origin_row][_origin_col]->SetDownStrokeOn(true,
 					stroke_color);
 		}
