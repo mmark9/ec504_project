@@ -1319,13 +1319,14 @@ int main(int argc, char** argv) {
     if (sub_pos != output_path.npos) {
         output_path = output_path.substr(0, sub_pos);
     }
-    std::string answer_file[3] = { output_path + "_Dijkstra_solution.svg",
-                                   output_path + "_GreedyBest_solution.svg",
-                                   output_path + "_Astar_solution.svg" };
+    std::string answer_file[3] = { "./Dijkstra_Results/" + output_path + "_Dijkstra_solution.svg",
+                                   "./Greedy_Results/" + output_path + "_GreedyBest_solution.svg",
+                                   "./Astar_Results/" + output_path + "_Astar_solution.svg" };
     MazeTraveler* mt = new MazeTraveler(maze_matrix, adjacency_list);
     // call these functions to get starts and end points
     uint32_t start_node = mt->GetStartNode();
     uint32_t end_node = mt->GetEndNode();
+    fprintf(stdout, "Start Node = %u | End Node = %u\n", start_node, end_node);
     NodeIndexToCellMap node_check = mt->GetNodeMap();
     Path solution_path;
     uint32_t path_ptr;
